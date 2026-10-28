@@ -1,5 +1,5 @@
 /* Service Worker：オフライン起動と、電波復帰時の自動送信 */
-const CACHE = 'pump-log-v2';
+const CACHE = 'pump-log-v3';
 const FILES = [
   './',
   './index.html',
