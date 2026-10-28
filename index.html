@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5f8b">
+<title>井戸ポンプ 稼働記録 / Ghi giờ chạy bơm</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #f4f6f3;
+    --card: #ffffff;
+    --ink: #1c2421;
+    --sub: #5d6a66;
+    --line: #dde3df;
+    --brand: #1f5f8b;
+    --brand-ink: #ffffff;
+    --ok: #2f7d4f;
+    --warn: #b8660b;
+    --warn-bg: #fff4e5;
+    --err: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    -webkit-tap-highlight-color: transparent; }
+  body { padding: 0 0 calc(24px + env(safe-area-inset-bottom)); }
+  header { background: var(--brand); color: var(--brand-ink); padding: 14px 16px 12px;
+    padding-top: calc(14px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; letter-spacing: .02em; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.18); white-space: nowrap; }
+  .pill.pending { background: #ffd28a; color: #4a2c00; font-weight: 700; }
+  main { max-width: 520px; margin: 0 auto; padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  html, body { overflow-x: hidden; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .label { font-size: 13px; color: var(--sub); margin-bottom: 6px; }
+  .last-val { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .last-val small { font-size: 16px; font-weight: 500; color: var(--sub); margin-left: 4px; }
+  .last-meta { font-size: 14px; color: var(--sub); margin-top: 2px; }
+  label.f { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
+  label.f:first-child { margin-top: 0; }
+  input, textarea { width: 100%; font: inherit; font-size: 17px; padding: 12px; border: 1.5px solid var(--line);
+    border-radius: 10px; background: #fff; color: var(--ink); }
+  input:focus, textarea:focus { outline: none; border-color: var(--brand); }
+  #meter { font-size: 34px; font-weight: 700; text-align: right; padding: 14px 14px; font-variant-numeric: tabular-nums; }
+  .row { display: flex; gap: 8px; }
+  .row > input { flex: 1; min-width: 0; }
+  .calc { margin-top: 10px; font-size: 15px; padding: 10px 12px; border-radius: 10px; background: #eef4f8; min-height: 44px; }
+  .calc.warn { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+  .calc b { font-size: 18px; }
+  button { font: inherit; border: 0; border-radius: 12px; cursor: pointer; }
+  .btn-main { width: 100%; margin-top: 16px; padding: 16px; font-size: 19px; font-weight: 700;
+    background: var(--brand); color: var(--brand-ink); }
+  .btn-main:active { transform: scale(.99); opacity: .9; }
+  .btn-sub { padding: 10px 14px; font-size: 15px; background: #e7ecea; color: var(--ink); white-space: nowrap; }
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list li { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
+  .list li:first-child { border-top: 0; }
+  .list .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .list .m { color: var(--sub); font-size: 13px; }
+  .empty { color: var(--sub); font-size: 14px; }
+  .list li.empty { display: block; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .head h2 { font-size: 16px; margin: 0; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+  details[open] summary { margin-bottom: 8px; }
+  .hint { font-size: 12px; color: var(--sub); margin-top: 6px; line-height: 1.5; }
+  #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px);
+    background: #1c2421; color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 15px; opacity: 0;
+    transition: .25s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; z-index: 10; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.err { background: var(--err); }
+  #setupBanner { display: none; background: var(--warn-bg); color: var(--warn); border-color: #f0c98d; font-weight: 600; }
+
+  /* ベトナム語（日本語の下に小さく併記） */
+  .vi { display: block; font-size: .8em; font-weight: 500; opacity: .78; margin-top: 2px; line-height: 1.35; }
+  .vi-in { font-size: .85em; font-weight: 500; opacity: .78; }
+  header h1 .vi { font-size: 12px; opacity: .85; }
+  .pill { text-align: center; line-height: 1.25; }
+  .pill .vi { font-size: 11px; margin-top: 0; }
+  .btn-main .vi { font-size: 14px; }
+  .btn-sub .vi { font-size: 11px; margin-top: 0; }
+  #toast .vi { opacity: .85; }
+  #meter::placeholder, input::placeholder { color: #9aa5a1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>井戸ポンプ 稼働記録<span class="vi">Ghi giờ chạy bơm giếng</span></h1>
+  <span id="status" class="pill">確認中…<span class="vi">Đang kiểm tra…</span></span>
+</header>
+
+<main>
+  <div id="setupBanner" class="card">最初に一番下の「設定」で送信先と合言葉を入れてください（管理者から届いた設定リンクを開けば自動で入ります）。<span class="vi">Hãy nhập URL và mật mã ở mục “Cài đặt” bên dưới (mở link cài đặt do quản lý gửi sẽ tự điền).</span></div>
+
+  <section class="card">
+    <div class="label">前回の記録 <span class="vi-in">/ Lần ghi trước</span></div>
+    <div class="last-val" id="lastVal">—<small>h</small></div>
+    <div class="last-meta" id="lastMeta">まだ記録がありません<span class="vi">Chưa có dữ liệu</span></div>
+  </section>
+
+  <section class="card">
+    <form id="form" autocomplete="off">
+      <label class="f" for="meter">アワーメーターの値（h）<span class="vi">Số trên đồng hồ đếm giờ (h)</span></label>
+      <input id="meter" type="text" inputmode="decimal" placeholder="0.0" required>
+      <div class="calc" id="calc"></div>
+
+      <label class="f" for="at">記録時刻<span class="vi">Thời gian ghi</span></label>
+      <div class="row">
+        <input id="at" type="datetime-local" required>
+        <button type="button" class="btn-sub" id="nowBtn">今<span class="vi">Bây giờ</span></button>
+      </div>
+
+      <label class="f" for="recorder">記録者<span class="vi">Người ghi</span></label>
+      <input id="recorder" type="text" placeholder="名前 / Tên" list="recorderList" required>
+      <datalist id="recorderList"></datalist>
+
+      <label class="f" for="note">メモ（任意）<span class="vi">Ghi chú (không bắt buộc)</span></label>
+      <input id="note" type="text" placeholder="異音あり など / Có tiếng lạ…">
+
+      <button class="btn-main" type="submit">記録する<span class="vi">Lưu</span></button>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="head">
+      <h2>未送信<span class="vi">Chưa gửi</span></h2>
+      <button class="btn-sub" id="syncBtn" type="button">今すぐ送信<span class="vi">Gửi ngay</span></button>
+    </div>
+    <ul class="list" id="pendingList"></ul>
+    <div class="hint">WiFiにつながると自動で送られます。送れたものはここから消えます。<span class="vi">Khi có WiFi sẽ tự động gửi. Dữ liệu đã gửi sẽ không còn hiện ở đây.</span></div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>この端末で送信済み<span class="vi">Đã gửi từ máy này</span></h2></div>
+    <ul class="list" id="sentList"></ul>
+  </section>
+
+  <section class="card">
+    <details id="settings">
+      <summary>設定 <span class="vi-in">/ Cài đặt</span></summary>
+      <label class="f" for="cfgUrl">送信先URL（GASのウェブアプリURL）<span class="vi">URL nhận dữ liệu</span></label>
+      <input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+      <label class="f" for="cfgToken">合言葉<span class="vi">Mật mã</span></label>
+      <input id="cfgToken" type="text">
+      <label class="f" for="cfgDevice">この端末の名前<span class="vi">Tên máy này</span></label>
+      <input id="cfgDevice" type="text" placeholder="例：豚舎スマホ1 / VD: Máy chuồng 1">
+      <button class="btn-main" type="button" id="saveCfg">保存して接続テスト<span class="vi">Lưu và kiểm tra kết nối</span></button>
+      <button class="btn-sub" type="button" id="copyLink" style="width:100%;margin-top:10px">他のスマホ用の設定リンクをコピー<span class="vi">Sao chép link cài đặt cho máy khác</span></button>
+      <div class="hint">設定リンクを他のスマホで開くと、送信先と合言葉が自動で入ります。社外の人には渡さないでください。<span class="vi">Mở link cài đặt trên máy khác sẽ tự điền URL và mật mã. Không gửi cho người ngoài công ty.</span></div>
+    </details>
+  </section>
+</main>
+
+<div id="toast"></div>
+<script src="store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
