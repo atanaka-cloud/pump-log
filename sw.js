@@ -1,5 +1,5 @@
 /* Service Worker：オフライン起動と、電波復帰時の自動送信 */
-const CACHE = 'pump-log-v3';
+const CACHE = 'pump-log-v4';
 const FILES = [
   './',
   './index.html',
@@ -13,7 +13,10 @@ const FILES = [
 importScripts('./store.js');
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' でブラウザの古いキャッシュを使わず、必ず最新版を取りに行く
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(FILES.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -30,7 +33,7 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(hit => {
-      const net = fetch(e.request).then(res => {
+      const net = fetch(e.request.url, { cache: 'no-cache' }).then(res => {
         if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
         return res;
       }).catch(() => hit);
